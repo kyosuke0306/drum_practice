@@ -158,7 +158,13 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 <section class="card">
   <div class="cardhead"><b>曲の設定</b></div>
   <div class="ctl"><label>曲名 <input id="nameIn" type="text" style="width:200px"></label></div>
-  <div class="ctl"><button class="btn sm" id="resetBtn">サンプル譜面に戻す</button></div>
+  <div class="ctl">
+    <label class="btn sm" for="fileIn"><svg viewBox="0 0 16 16"><path d="M8 11V2.5M4.5 6 8 2.5 11.5 6M2.5 10.5v3h11v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>譜面ファイルを読み込む</label>
+    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    <button class="btn sm" id="copyBtn"><svg viewBox="0 0 16 16"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5V3.5A1 1 0 0 1 4 2.5h6.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>譜面をコピー</button>
+    <button class="btn sm" id="resetBtn">最初の譜面に戻す</button>
+  </div>
+  <div class="hint" id="fileMsg">譜面は自分のブラウザにだけ保存されます。</div>
 </section>
 </div>
 
@@ -185,7 +191,8 @@ function sample(){
 }
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.bars&&s.bars.length)return s;}catch(e){}return null;}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(song));}catch(e){}}
-let song=load()||sample();
+const PRESET=null;
+let song=load()||(PRESET?JSON.parse(JSON.stringify(PRESET)):sample());
 
 const on=(bar,id,s)=>!!(bar&&bar[id]&&bar[id][s]==='x');
 function toggle(bar,id,s){const a=(bar[id]||'................').split('');a[s]=a[s]==='x'?'.':'x';bar[id]=a.join('');}
@@ -345,6 +352,8 @@ function drawKit(sf,a,b){
 
 /* ---------- cursor & highlight ---------- */
 let lastClass={},lastBar=-1;
+function scrollToBar(bi){const row=document.querySelector(`#score svg[data-row="${Math.floor(bi/bpr)}"]`),sc=$('#score');if(row)sc.scrollTo({top:Math.max(0,rowTop(row)-4),behavior:'smooth'});}
+function rowTop(row){const sc=$('#score');return row.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop;}
 function drawCursor(sf){
   const nb=song.bars.length;
   const cb=sf>=0?Math.min(nb-1,Math.floor(sf/16)):-1;
@@ -357,7 +366,7 @@ function drawCursor(sf){
   for(let r=0;r<rows;r++){const e=document.getElementById('cur-'+r);if(!e)continue;
     if(cb>=0&&Math.floor(cb/bpr)===r){const s=sf-cb*16;const x=(cb%bpr)*BW+SX0+s*SXW+SXW/2;e.setAttribute('x1',x);e.setAttribute('x2',x);e.style.visibility='visible';}else e.style.visibility='hidden';}
   if(cb!==lastBar&&cb>=0){lastBar=cb;const row=document.querySelector(`#score svg[data-row="${Math.floor(cb/bpr)}"]`),sc=$('#score');
-    if(row&&isPlaying()){const top=row.offsetTop,bot=top+row.offsetHeight;if(top<sc.scrollTop||bot>sc.scrollTop+sc.clientHeight)sc.scrollTo({top:Math.max(0,top-4),behavior:'smooth'});}
+    if(row&&isPlaying()){const top=rowTop(row),bot=top+row.getBoundingClientRect().height;if(top<sc.scrollTop||bot>sc.scrollTop+sc.clientHeight)sc.scrollTo({top:Math.max(0,top-4),behavior:'smooth'});}
     if(!$('#editor').hidden)markEditorStep(-1);
   }
   if(!$('#editor').hidden&&cb===selBar)markEditorStep(Math.floor(sf-cb*16));else if(!$('#editor').hidden)markEditorStep(-1);
@@ -491,7 +500,7 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setM
 $('#slPlay').addEventListener('click',()=>slow.playing?stopSlow():startSlow());
 $('#spPlay').addEventListener('click',()=>{if(!ctrl){if(!song.uri)$('#spUrl').focus();return;}ensureAudio();ctrl.togglePlay();});
 $('#spd').addEventListener('input',e=>setSpeed(+e.target.value/100));
-$('#lpA').addEventListener('change',e=>{loopA=+e.target.value;if(loopB<loopA)loopB=loopA;fillLoopSel();lastClass={};if(slow.playing)startSlow();});
+$('#lpA').addEventListener('change',e=>{loopA=+e.target.value;selBar=loopA;lastSf=loopA*16;scrollToBar(loopA);if(loopB<loopA)loopB=loopA;fillLoopSel();lastClass={};if(slow.playing)startSlow();});
 $('#lpB').addEventListener('change',e=>{loopB=+e.target.value;if(loopB<loopA)loopA=loopB;fillLoopSel();lastClass={};if(slow.playing)startSlow();});
 $('#tapOne').addEventListener('click',()=>{if(!ctrl)return;song.offset=Math.max(0,+spSec().toFixed(3));refreshSong();save();});
 document.querySelectorAll('[data-off]').forEach(b=>b.addEventListener('click',()=>{song.offset=Math.max(0,+(song.offset+ +b.dataset.off).toFixed(3));refreshSong();save();}));
@@ -515,8 +524,19 @@ $('#edAdd').addEventListener('click',()=>{song.bars.splice(selBar+1,0,{});selBar
 $('#edClear').addEventListener('click',()=>{song.bars[selBar]={};rebuild();});
 $('#edDel').addEventListener('click',()=>{if(song.bars.length<=1){song.bars[0]={};}else{song.bars.splice(selBar,1);selBar=Math.min(selBar,song.bars.length-1);}rebuild();});
 let resetArm=false;
-$('#resetBtn').addEventListener('click',e=>{if(!resetArm){resetArm=true;e.currentTarget.textContent='もう一度押すと戻します';setTimeout(()=>{resetArm=false;$('#resetBtn').textContent='サンプル譜面に戻す';},3000);return;}
-  const uri=song.uri;song=sample();song.uri=uri;selBar=0;loopA=0;loopB=song.bars.length-1;resetArm=false;$('#resetBtn').textContent='サンプル譜面に戻す';rebuild();});
+$('#resetBtn').addEventListener('click',e=>{if(!resetArm){resetArm=true;e.currentTarget.textContent='もう一度押すと戻します';setTimeout(()=>{resetArm=false;$('#resetBtn').textContent='最初の譜面に戻す';},3000);return;}
+  song=PRESET?JSON.parse(JSON.stringify(PRESET)):sample();selBar=0;loopA=0;loopB=song.bars.length-1;resetArm=false;$('#resetBtn').textContent='最初の譜面に戻す';rebuild();});
+$('#fileIn').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.bars)||!d.bars.length)throw 0;
+    stopSlow();song={name:d.name||'曲',uri:d.uri||'',bpm:+d.bpm||120,offset:+d.offset||0,bars:d.bars};
+    selBar=0;loopA=0;loopB=song.bars.length-1;lastSf=0;rebuild();
+    if(song.uri){if(spAPI)makeEmbed();else if(failed){failed=false;spFail();}}
+    $('#fileMsg').textContent=`「${song.name}」を読み込みました（${song.bars.length}小節）`;}
+  catch(err){$('#fileMsg').textContent='読み込めませんでした。譜面ファイル（.json）を選んでください。';}
+  e.target.value='';};
+  r.readAsText(f);});
+$('#copyBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(JSON.stringify(song));$('#fileMsg').textContent='譜面をコピーしました。メモなどに貼って保存できます。';}catch(e){$('#fileMsg').textContent='コピーできませんでした';}});
 let rw;window.addEventListener('resize',()=>{clearTimeout(rw);rw=setTimeout(()=>{const old=bpr;const W=$('#score').clientWidth;const nb=W>=980?3:(W>=600?2:1);if(nb!==old)renderScore();},150);});
 
 function frame(){
@@ -525,7 +545,7 @@ function frame(){
   else if(ctrl&&(!sp.paused||sp.at))sf=syncSf();
   if(sf===null)sf=lastSf;else lastSf=sf;
   if(mode==='slow'&&!slow.playing&&(sf<a||sf>=b))sf=a;
-  try{drawKit(sf,a,b);drawCursor(sf);}catch(e){}
+  try{drawKit(sf,a,b);drawCursor(mode==='slow'?Math.max(sf,a):sf);}catch(e){}
   requestAnimationFrame(frame);
 }
 
