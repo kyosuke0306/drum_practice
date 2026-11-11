@@ -7,6 +7,7 @@
 <style>
 :root{--bg:#14110f;--panel:#1f1a17;--panel2:#2a231f;--line:#3a312b;--text:#f3ece4;--mute:#a89a8c;--acc:#f0a03c;--r:#ff7a45;--l:#4fb6ee;--foot:#9be07a}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;font-size:15px;-webkit-tap-highlight-color:transparent}
 .wrap{max-width:960px;margin:0 auto;padding:12px 12px 60px}
 header{display:flex;align-items:center;gap:10px;margin:2px 0 12px}
@@ -19,6 +20,7 @@ header .sub{font-size:12px;color:var(--mute)}
 .btn:active{transform:scale(.97)}
 .btn.primary{background:var(--acc);color:#1a1209;border-color:transparent;font-weight:700}
 .btn.sm{padding:6px 10px;font-size:13px}
+a.btn{text-decoration:none}
 .btn svg{width:16px;height:16px;flex:none}
 .ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0}
 .ctl label{display:inline-flex;align-items:center;gap:6px;font-size:14px}
@@ -72,6 +74,13 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 .hint{font-size:12px;color:var(--mute);margin-top:6px;line-height:1.6}
 .spacer{flex:1}
+.steps{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.step{display:flex;align-items:center;gap:8px;font-size:14px;flex-wrap:wrap}
+.step .num{width:22px;height:22px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none}
+.bigtap{width:100%;border:0;border-radius:14px;background:var(--acc);color:#1a1209;font-size:18px;font-weight:800;padding:18px;display:flex;align-items:center;justify-content:center;gap:10px;font-family:inherit;cursor:pointer;touch-action:manipulation}
+.bigtap svg{width:24px;height:24px}
+.bigtap:active{transform:scale(.98);filter:brightness(1.1)}
+.bigtap.run{background:var(--panel2);color:var(--text);border:1px solid var(--acc)}
 </style>
 </head>
 <body>
@@ -94,23 +103,25 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 </div>
 
 <section class="card" id="ctlSync">
+  <div class="steps">
+    <div class="step"><span class="num">1</span><span>Spotifyで曲を流す（アプリでOK）</span><a id="spOpen" class="btn sm" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 6.3c2-.6 4.2-.4 6 .6M5.4 8.4c1.6-.4 3.3-.2 4.7.5M5.8 10.4c1.2-.3 2.4-.1 3.4.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Spotifyで開く</a></div>
+    <div class="step"><span class="num">2</span><span>曲が<b id="tapBarLbl">1小節目</b>に入る瞬間にタップ</span></div>
+  </div>
+  <button id="tapGo" class="bigtap"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="6" fill="currentColor"/><path d="M12 2v3M4 13H2m20 0h-2M5.6 6.6 4.2 5.2m14.2 1.4 1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span id="tapGoTxt">ここでタップ</span></button>
   <div class="ctl">
-    <button id="spPlay" class="btn primary"></button>
-    <button id="tapOne" class="btn"><svg viewBox="0 0 16 16"><path d="M8 1v4M3 8H1m14 0h-2M4.5 4.5 3 3m8.5 1.5L13 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="10.5" r="3.5" fill="currentColor"/></svg>ここが1小節目</button>
+    <span style="font-size:14px">ずれたら</span>
+    <button class="btn sm" data-nudge="-0.04">譜面を遅らせる</button>
+    <button class="btn sm" data-nudge="0.04">譜面を進める</button>
+    <span class="spacer"></span>
+    <button class="btn sm" id="syncStop"><svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>止める</button>
   </div>
   <div class="ctl">
     <label>BPM <input id="bpm" type="number" min="30" max="300" step="0.5"></label>
     <button id="tapTempo" class="btn sm">タップでBPM</button>
-  </div>
-  <div class="ctl">
-    <span style="font-size:14px">ずれ補正</span>
-    <button class="btn sm" data-off="-0.05"><svg viewBox="0 0 16 16"><path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    <span id="offVal" style="font-variant-numeric:tabular-nums;min-width:62px;text-align:center"></span>
-    <button class="btn sm" data-off="0.05"><svg viewBox="0 0 16 16"><path d="M3 8h10M8 3v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     <span class="spacer"></span>
-    <label class="chk"><input type="checkbox" id="rep" checked>譜面をくり返す</label>
+    <label class="chk"><input type="checkbox" id="rep">譜面をくり返す</label>
   </div>
-  <div class="hint">曲を再生して、1小節目の頭で「ここが1小節目」を押すと譜面が曲に合います。ずれたら補正ボタンで調整。</div>
+  <div class="hint">途中から合わせたいときは、先に譜面の小節をタップして選び、Spotifyでその小節の頭が来た瞬間に「ここでタップ」を押します。</div>
 </section>
 
 <section class="card" id="ctlSlow" hidden>
@@ -441,9 +452,8 @@ let failed=false;
 function spFail(){
   if(failed||spAPI)return;failed=true;const n=$('#spNote');n.hidden=false;
   const link=song.uri?`<a href="https://open.spotify.com/track/${song.uri.split(':')[2]}" target="_blank" rel="noopener">Spotifyで開く</a>`:'';
-  n.innerHTML=`このページ（Claude上のプレビュー）ではSpotifyプレイヤーを埋め込めないため、「曲と合わせる」は動きません。GitHub Pagesなど普通のサイトに置くと動きます。今は「ドラムだけスロー」で譜面と手足の動きを試せます。${link}`;
-  $('#spHolder').textContent='Spotifyプレイヤーを読み込めませんでした';
-  setMode('slow');
+  n.innerHTML='ここではSpotifyプレイヤーを表示できませんが、Spotifyアプリで曲を流せば「曲と合わせる」が使えます。';
+  $('#spHolder').hidden=true;
 }
 function makeEmbed(){
   if(!spAPI||!song.uri)return;
@@ -454,7 +464,15 @@ function makeEmbed(){
   });
 }
 function spSec(){return sp.pos/1000+(sp.paused?0:(performance.now()-sp.at)/1000);}
+const clock={run:false,t0:0,start:0};
 function syncSf(){
+  if(!clock.run)return null;
+  let sf=clock.start+(performance.now()-clock.t0)/1000*song.bpm/60*4;
+  if($('#rep').checked)return sf%N;
+  if(sf>=N){clock.run=false;updateBtns();return N-.001;}
+  return sf;
+}
+function oldSyncSf(){
   let sf=(spSec()-song.offset)*song.bpm/60*4;
   if(sf<0)return sf;
   if($('#rep').checked)return sf%N;
@@ -462,15 +480,16 @@ function syncSf(){
 }
 
 /* ---------- UI ---------- */
-function isPlaying(){return mode==='slow'?slow.playing:(ctrl&&!sp.paused);}
+function isPlaying(){return mode==='slow'?slow.playing:clock.run;}
 function updateBtns(){
   $('#slPlay').innerHTML=slow.playing?IC.stop+'止める':IC.play+'再生';
-  $('#spPlay').innerHTML=(ctrl&&!sp.paused)?IC.pause+'一時停止':IC.play+'再生';
+  $('#tapBarLbl').textContent=`${selBar+1}小節目`;$('#tapGoTxt').textContent=clock.run?'演奏中 ・ タップで合わせ直し':'ここでタップ';$('#tapGo').classList.toggle('run',clock.run);
+  const id=(song.uri||'').split(':')[2];$('#spOpen').href=id?'https://open.spotify.com/track/'+id:'https://open.spotify.com/';
 }
 function setMode(m){
   mode=m;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.mode===m));
   $('#ctlSync').hidden=m!=='sync';$('#ctlSlow').hidden=m!=='slow';
-  if(m==='sync')stopSlow();else if(ctrl&&!sp.paused)try{ctrl.pause();}catch(e){}
+  if(m==='sync')stopSlow();else{clock.run=false;if(ctrl&&!sp.paused)try{ctrl.pause();}catch(e){}}updateBtns();
   lastClass={};
 }
 function fillLoopSel(){
@@ -480,14 +499,14 @@ function fillLoopSel(){
 }
 function refreshSong(){
   $('#songName').textContent=song.name||'曲';$('#songMeta').textContent=`BPM ${song.bpm} ・ ${song.bars.length}小節`;
-  $('#bpm').value=song.bpm;$('#offVal').textContent=`${song.offset.toFixed(2)}秒`;$('#nameIn').value=song.name||'';
+  $('#bpm').value=song.bpm;$('#nameIn').value=song.name||'';
   setSpeed(speed);
 }
 function rebuild(){compute();renderScore();fillLoopSel();refreshSong();if(!$('#editor').hidden)renderEditor();save();}
 function selectBar(bi){
   selBar=bi;lastSf=bi*16;
   if(mode==='slow'){loopA=bi;if(loopB<bi)loopB=song.bars.length-1;fillLoopSel();if(slow.playing)startSlow();}
-  else if(ctrl){const t=song.offset+bi*16/4*60/song.bpm;try{ctrl.seek(Math.max(0,t));}catch(e){}sp.pos=t*1000;sp.at=performance.now();}
+  updateBtns();
   if(!$('#editor').hidden)renderEditor();lastClass={};
 }
 function renderEditor(){
@@ -498,12 +517,12 @@ function renderEditor(){
 
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.mode)));
 $('#slPlay').addEventListener('click',()=>slow.playing?stopSlow():startSlow());
-$('#spPlay').addEventListener('click',()=>{if(!ctrl){if(!song.uri)$('#spUrl').focus();return;}ensureAudio();ctrl.togglePlay();});
+$('#tapGo').addEventListener('pointerdown',e=>{e.preventDefault();const st=clock.run?Math.round(syncSf()/16)*16:selBar*16;clock.start=st;clock.t0=performance.now();const was=clock.run;clock.run=true;lastSf=st;updateBtns();if(!was)setTimeout(()=>document.querySelector('.stage').scrollIntoView({behavior:'smooth',block:'start'}),150);});
+$('#syncStop').addEventListener('click',()=>{if(clock.run){lastSf=syncSf();clock.run=false;updateBtns();}});
 $('#spd').addEventListener('input',e=>setSpeed(+e.target.value/100));
 $('#lpA').addEventListener('change',e=>{loopA=+e.target.value;selBar=loopA;lastSf=loopA*16;scrollToBar(loopA);if(loopB<loopA)loopB=loopA;fillLoopSel();lastClass={};if(slow.playing)startSlow();});
 $('#lpB').addEventListener('change',e=>{loopB=+e.target.value;if(loopB<loopA)loopA=loopB;fillLoopSel();lastClass={};if(slow.playing)startSlow();});
-$('#tapOne').addEventListener('click',()=>{if(!ctrl)return;song.offset=Math.max(0,+spSec().toFixed(3));refreshSong();save();});
-document.querySelectorAll('[data-off]').forEach(b=>b.addEventListener('click',()=>{song.offset=Math.max(0,+(song.offset+ +b.dataset.off).toFixed(3));refreshSong();save();}));
+document.querySelectorAll('[data-nudge]').forEach(b=>b.addEventListener('click',()=>{if(clock.run)clock.t0-= +b.dataset.nudge*1000;}));
 $('#bpm').addEventListener('change',e=>{const v=Math.min(300,Math.max(30,+e.target.value||120));song.bpm=v;refreshSong();save();});
 let taps=[];
 $('#tapTempo').addEventListener('click',()=>{const t=performance.now();if(taps.length&&t-taps[taps.length-1]>2000)taps=[];taps.push(t);if(taps.length>8)taps.shift();
@@ -542,7 +561,7 @@ let rw;window.addEventListener('resize',()=>{clearTimeout(rw);rw=setTimeout(()=>
 function frame(){
   let sf=null,a=0,b=N;
   if(mode==='slow'){a=loopA*16;b=(loopB+1)*16;if(slow.playing){a=slow.a;b=slow.b;sf=slowSf();}}
-  else if(ctrl&&(!sp.paused||sp.at))sf=syncSf();
+  else sf=syncSf();
   if(sf===null)sf=lastSf;else lastSf=sf;
   if(mode==='slow'&&!slow.playing&&(sf<a||sf>=b))sf=a;
   try{drawKit(sf,a,b);drawCursor(mode==='slow'?Math.max(sf,a):sf);}catch(e){}
